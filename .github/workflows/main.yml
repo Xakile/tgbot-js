@@ -1,0 +1,66 @@
+
+# This is a basic workflow to deploy app to Yandex Cloud.
+name: Deploy To Yandex Cloud
+
+# Triggers
+on:
+    # Run workflow on push into specific branch
+    push:
+        branches: ["master"]
+
+    # Run workflow manually
+    workflow_dispatch:
+
+# A workflow consists of jobs that can be executed sequentially or in parallel
+jobs:
+    # This workflow contains a single job called "build"
+    build:
+        # The type of runner
+        runs-on: ubuntu-latest
+
+        # Tasks that will be executed as part of the job
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v3
+
+            - name: Login to Yandex Cloud Container Registry
+              id: login-cr
+              uses: yc-actions/yc-cr-login@v1
+              with:
+                  yc-sa-json-credentials: ${{ secrets.YC_SA_JSON_CREDENTIALS }}
+
+            - name: Build, tag, and push image to Yandex Cloud Container Registry
+              env:
+                  CR_PREFIX: cr.yandex
+                  CR_REGISTRY: ${{ secrets.CR_REGISTRY }}
+                  CR_REPOSITORY: ${{ secrets.CR_REPOSITORY }}
+                  IMAGE_TAG: ${{ github.sha }}
+              run: |
+                  docker build -t $CR_PREFIX/$CR_REGISTRY/$CR_REPOSITORY:$IMAGE_TAG .
+                  docker push $CR_PREFIX/$CR_REGISTRY/$CR_REPOSITORY:$IMAGE_TAG
+
+            - name: Deploy COI VM
+              id: deploy-coi
+              uses: yc-actions/yc-coi-deploy@v1
+              env:
+                  CR_PREFIX: cr.yandex
+                  CR_REGISTRY: ${{ secrets.CR_REGISTRY }}
+                  CR_REPOSITORY: ${{ secrets.CR_REPOSITORY }}
+                  IMAGE_TAG: ${{ github.sha }}
+                  SSH_KEY: ${{ secrets.SSH_KEY }}
+                  TG_TOKEN: ${{ secrets.TG_TOKEN }}
+                  API_URL: ${{ secrets.API_URL }}
+              with:
+                  yc-sa-json-credentials: ${{ secrets.YC_SA_JSON_CREDENTIALS }}
+                  folder-id: ${{ secrets.VM_FOLDER_ID }}
+                  VM-name: ${{ secrets.VM_NAME }}
+                  vm-service-account-id: ${{ secrets.VM_SERVICE_ACCOUNT_ID }}
+                  vm-subnet-id: ${{ secrets.VM_SUBNET_ID }}
+                  vm-cores: 2
+                  vm-memory: 2GB
+                  vm-core-fraction: 20
+                  vm-disk-type: network-hdd
+                  vm-disk-size: 30GB
+                  vm-zone-id: ru-central1-b
+                  user-data-path: "./user-data.yaml"
+                  docker-compose-path: "./docker-compose.yaml"
