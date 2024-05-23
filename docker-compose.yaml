@@ -1,0 +1,9 @@
+version: "3.7"
+services:
+    bot:
+        container_name: bot
+        image: "{{env.CR_PREFIX}}/{{env.CR_REGISTRY}}/{{env.CR_REPOSITORY}}:{{env.IMAGE_TAG}}"
+        environment:
+            TG_TOKEN: "{{env.TG_TOKEN}}"
+            API_URL: "{{env.API_URL}}"
+        restart: always
